@@ -1,18 +1,38 @@
-var createError = require("http-errors");
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
-var sassMiddleware = require("node-sass-middleware");
+import createError from "http-errors";
+import express from "express";
+import nunjucks from "nunjucks";
+import path from "path";
+import cookieParser from "cookie-parser";
+import logger from "morgan";
+import sassMiddleware from "node-sass-middleware";
+import expressSession from "express-session";
+import { Issuer, Strategy } from "openid-client";
+import passport from "passport";
 
-var indexRouter = require("./routes/index");
-var usersRouter = require("./routes/users");
+import routes from "./routes/routes.js";
 
-var app = express();
+const app = express();
 
 // view engine setup
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "twig");
+app.set("views", `${process.cwd()}/views`);
+app.set("view engine", "njk");
+nunjucks.configure("views", {
+  autoescape: true,
+  express: app,
+});
+
+// Keycloak
+const keycloakIssuer = await Issuer.discover(
+  "http://localhost:8080/realms/keycloak-express"
+);
+
+const client = new keycloakIssuer.Client({
+  client_id: "keycloak-express",
+  client_secret: process.env.kc_secret,
+  redirect_uris: ["http://localhost:3000/auth/callback"],
+  post_logout_redirect_uris: ["http://localhost:3000/logout/callback"],
+  response_types: ["code"],
+});
 
 app.use(logger("dev"));
 app.use(express.json());
@@ -20,24 +40,85 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(
   sassMiddleware({
-    src: path.join(__dirname, "public"),
-    dest: path.join(__dirname, "public"),
+    src: `${process.cwd()}/public`,
+    dest: `${process.cwd()}/public`,
     indentedSyntax: false, // true = .sass and false = .scss
     sourceMap: true,
   })
 );
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(`${process.cwd()}/public`));
 
-app.use("/", indexRouter);
-app.use("/users", usersRouter);
+// Express sessions
+app.use(
+  expressSession({
+    secret: process.env.session_secret,
+    resave: false,
+    saveUninitialized: true,
+    store: new expressSession.MemoryStore(),
+  })
+);
+
+// Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// This creates the strategy
+passport.use(
+  "oidc",
+  new Strategy({ client }, (tokenSet, userinfo, done) => {
+    return done(null, tokenSet.claims());
+  })
+);
+
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+// Callback - routes to protected
+app.get("/auth/callback", (req, res, next) => {
+  passport.authenticate("oidc", {
+    successRedirect: "/",
+    failureRedirect: "/failure",
+  })(req, res, next);
+});
+
+// Middleware to check whether user is authenticated
+const checkAuthenticated = (req, res, next) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect("/auth/callback");
+};
+
+// start logout request
+app.get("/logout", (req, res) => {
+  res.redirect(client.endSessionUrl());
+});
+
+// logout callback
+app.get("/logout/callback", (req, res, next) => {
+  req.logout((err) => {
+    if (err) {
+      return next(err);
+    }
+    res.redirect("/");
+  });
+});
+
+// Routes
+app.use("/", routes);
 
 // catch 404 and forward to error handler
-app.use(function (req, res, next) {
+app.use((req, res, next) => {
   next(createError(404));
 });
 
 // error handler
-app.use(function (err, req, res, next) {
+app.use((err, req, res, next) => {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
@@ -47,4 +128,4 @@ app.use(function (err, req, res, next) {
   res.render("error");
 });
 
-module.exports = app;
+export default app;
