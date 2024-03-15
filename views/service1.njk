@@ -11,7 +11,19 @@
   <p>Welcome to {{title}}</p>
 
   {% if isAuthed %}
-  Private info
+    You can see authenticated content
+    <br/>
   {% endif %}
+
+  {% if isLowAccess %}
+    You can see low access content
+    <br/>
+  {% endif %}
+
+  {% if isHighAccess %}
+    You can see high access content
+    <br/>
+  {% endif %}
+
 </body>
 </html>

@@ -66,7 +66,10 @@ app.use(passport.session());
 passport.use(
   "oidc",
   new Strategy({ client }, (tokenSet, userinfo, done) => {
-    return done(null, tokenSet.claims());
+    return done(null, {
+      roles: userinfo.resource_access?.["keycloak-express"]?.roles,
+      ...tokenSet.claims(),
+    });
   })
 );
 
