@@ -1,22 +1,23 @@
-import createError from "http-errors";
-import express from "express";
+import createError, { HttpError } from "http-errors";
+import express, { Application, NextFunction, Request, Response } from "express";
 import nunjucks from "nunjucks";
-import path from "path";
+import { resolve } from "node:path";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
 import sassMiddleware from "node-sass-middleware";
 import expressSession from "express-session";
-import { Issuer, Strategy } from "openid-client";
+import { Issuer, Strategy, TokenSet, UserinfoResponse } from "openid-client";
 import passport from "passport";
+import createMemoryStore from "memorystore";
 
 import routes from "./routes/routes.js";
 
-const app = express();
+const app: Application = express();
 
 // view engine setup
-app.set("views", `${process.cwd()}/views`);
 app.set("view engine", "njk");
-nunjucks.configure("views", {
+app.set("views", resolve(__dirname, "../src/frontend/views"));
+nunjucks.configure(app.get("views"), {
   autoescape: true,
   express: app,
 });
@@ -28,7 +29,7 @@ const keycloakIssuer = await Issuer.discover(
 
 const client = new keycloakIssuer.Client({
   client_id: "keycloak-express",
-  client_secret: process.env.kc_secret,
+  client_secret: process.env.KC_SECRET,
   redirect_uris: ["http://localhost:3000/auth/callback"],
   post_logout_redirect_uris: ["http://localhost:3000/logout/callback"],
   response_types: ["code"],
@@ -40,21 +41,26 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(
   sassMiddleware({
-    src: `${process.cwd()}/public`,
+    src: `${process.cwd()}/src/frontend`,
     dest: `${process.cwd()}/public`,
     indentedSyntax: false, // true = .sass and false = .scss
-    sourceMap: true,
+    sourceMap: process.env.NODE_ENV === "development",
   })
 );
 app.use(express.static(`${process.cwd()}/public`));
 
 // Express sessions
+const MemoryStore = createMemoryStore(expressSession);
 app.use(
   expressSession({
-    secret: process.env.session_secret,
+    secret: process.env.SESSION_SECRET || "",
     resave: false,
     saveUninitialized: true,
-    store: new expressSession.MemoryStore(),
+    // Expire every 24hrs
+    cookie: { maxAge: 86400000 },
+    store: new MemoryStore({
+      checkPeriod: 86400000,
+    }),
   })
 );
 
@@ -65,21 +71,34 @@ app.use(passport.session());
 // This creates the strategy
 passport.use(
   "oidc",
-  new Strategy({ client }, (tokenSet, userinfo, done) => {
-    return done(null, {
-      roles: userinfo.resource_access?.["keycloak-express"]?.roles,
-      ...tokenSet.claims(),
-    });
-  })
+  new Strategy(
+    { client },
+    (
+      tokenSet: TokenSet,
+      userinfo: UserinfoResponse<{
+        resource_access?: { "keycloak-express": { roles: string[] } };
+      }>,
+      done: (err: any, user?: Express.User) => void
+    ) => {
+      return done(null, {
+        roles: userinfo.resource_access?.["keycloak-express"]?.roles,
+        ...tokenSet.claims(),
+      });
+    }
+  )
 );
 
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
+passport.serializeUser(
+  (user: Express.User, done: (err: any, user?: Express.User) => void) => {
+    done(null, user);
+  }
+);
 
-passport.deserializeUser((user, done) => {
-  done(null, user);
-});
+passport.deserializeUser(
+  (user: Express.User, done: (err: any, user?: Express.User) => void) => {
+    done(null, user);
+  }
+);
 
 // Callback - routes to protected
 app.get("/auth/callback", (req, res, next) => {
@@ -90,7 +109,11 @@ app.get("/auth/callback", (req, res, next) => {
 });
 
 // Middleware to check whether user is authenticated
-const checkAuthenticated = (req, res, next) => {
+const checkAuthenticated = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   if (req.isAuthenticated()) {
     return next();
   }
@@ -121,10 +144,10 @@ app.use((req, res, next) => {
 });
 
 // error handler
-app.use((err, req, res, next) => {
+app.use((err: HttpError, req: Request, res: Response, next: NextFunction) => {
   // set locals, only providing error in development
   res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
+  res.locals.error = process.env.NODE_ENV === "development" ? err : {};
 
   // render the error page
   res.status(err.status || 500);
