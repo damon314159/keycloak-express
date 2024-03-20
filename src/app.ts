@@ -1,22 +1,23 @@
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import createError, { HttpError } from "http-errors";
 import express, { Application, NextFunction, Request, Response } from "express";
-import nunjucks from "nunjucks";
-import { resolve } from "node:path";
+import expressSession from "express-session";
+import createMemoryStore from "memorystore";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
-import sassMiddleware from "node-sass-middleware";
-import expressSession from "express-session";
-import { Issuer, Strategy, TokenSet, UserinfoResponse } from "openid-client";
 import passport from "passport";
-import createMemoryStore from "memorystore";
+import { Issuer, Strategy, TokenSet, UserinfoResponse } from "openid-client";
+import nunjucks from "nunjucks";
 
 import routes from "./routes/routes.js";
 
 const app: Application = express();
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // view engine setup
 app.set("view engine", "njk");
-app.set("views", resolve(__dirname, "../src/frontend/views"));
+app.set("views", resolve(__dirname, "./views"));
 nunjucks.configure(app.get("views"), {
   autoescape: true,
   express: app,
@@ -35,19 +36,13 @@ const client = new keycloakIssuer.Client({
   response_types: ["code"],
 });
 
-app.use(logger("dev"));
+if (process.env.NODE_ENV === "development") {
+  app.use(logger("dev"));
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(
-  sassMiddleware({
-    src: `${process.cwd()}/src/frontend`,
-    dest: `${process.cwd()}/public`,
-    indentedSyntax: false, // true = .sass and false = .scss
-    sourceMap: process.env.NODE_ENV === "development",
-  })
-);
-app.use(express.static(`${process.cwd()}/public`));
+app.use(express.static(resolve(__dirname, "./public")));
 
 // Express sessions
 const MemoryStore = createMemoryStore(expressSession);

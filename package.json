@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "start": "node --env-file=.env dist/server.js",
-    "build": "tsc --project ./ && tsc --project src/frontend/"
+    "prestart": "npm run -s build",
+    "build": "npm-run-all --silent -p build:*",
+    "build:ts": "tsc --project ./ && tsc --project src/frontend/",
+    "build:style": "sass src/frontend/stylesheets/style.scss dist/public/styles/style.css -s compressed --no-source-map",
+    "build:views": "cp -r src/frontend/views dist/"
   },
   "type": "module",
   "dependencies": {
@@ -15,7 +19,6 @@
     "http-errors": "~1.6.3",
     "memorystore": "^1.6.7",
     "morgan": "~1.9.1",
-    "node-sass-middleware": "^1.1.0",
     "nunjucks": "^3.2.4",
     "openid-client": "^5.6.5",
     "passport": "^0.7.0"
@@ -27,9 +30,10 @@
     "@types/express-session": "^1.18.0",
     "@types/morgan": "^1.9.9",
     "@types/node": "^20.11.28",
-    "@types/node-sass-middleware": "^0.0.35",
     "@types/nunjucks": "^3.2.6",
     "@types/passport": "^1.0.16",
+    "npm-run-all": "^4.1.5",
+    "sass": "^1.72.0",
     "typescript": "^5.4.2"
   }
 }

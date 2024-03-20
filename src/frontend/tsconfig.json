@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "target": "es5",
-    "outDir": "../../dist/public/javascripts"
+    "outDir": "../../dist/public/scripts"
   },
   "include": ["**/*.ts"],
   "exclude": []

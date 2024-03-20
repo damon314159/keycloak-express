@@ -8,7 +8,9 @@ import app from "./app.js";
 import http from "http";
 import Debug from "debug";
 import { HttpError } from "http-errors";
-const debug = Debug("express-sandbox:server");
+
+const debug =
+  process.env.NODE_ENV === "development" ? Debug("app:server") : () => {};
 
 /**
  * Get port from environment and store in Express.
