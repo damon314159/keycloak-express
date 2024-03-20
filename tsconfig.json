@@ -8,9 +8,9 @@
     "target": "ESNext",
     "types": ["node"],
     "removeComments": true,
-    "outDir": "dist"
+    "outDir": "lib"
   },
   "typeRoots": ["typing-stubs", "node_modules/@types"],
-  "exclude": ["node_modules", "dist", "src/frontend/**/*"],
+  "exclude": ["node_modules", "lib", "dist", "src/frontend/**/*"],
   "include": ["src/**/*", "e2e/**/*"]
 }
