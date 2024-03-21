@@ -10,7 +10,7 @@
     "removeComments": true,
     "outDir": "lib"
   },
-  "typeRoots": ["typing-stubs", "node_modules/@types"],
+  "typeRoots": ["./node_modules/@types", ".src/types"],
   "exclude": ["node_modules", "lib", "dist", "src/frontend/**/*"],
   "include": ["src/**/*", "e2e/**/*"]
 }
