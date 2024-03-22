@@ -4,14 +4,9 @@
   "private": true,
   "scripts": {
     "start": "node --env-file=.env dist/server.js",
-    "prestart": "npm run -s build",
-    "build": "npm-run-all -p --silent build:*",
-    "build:ts": "npm run -s build:ts:compile && npm run -s build:ts:bundleDeps",
-    "build:ts:compile": "tsc --project src/frontend/ && tsc --project ./",
-    "build:ts:bundleDeps": "rollup -c",
-    "build:style": "sass src/frontend/stylesheets/style.scss dist/public/styles/style.css -s compressed --no-source-map",
-    "build:views": "node -e \"require('fs').cpSync('./src/frontend/views', './dist/views', {recursive: true});\"",
-    "build:module": "node -e \"require('fs').cpSync('./src/dist.package.json', './dist/package.json');\""
+    "prestart": "[ -f dist/server.js ] || npm run -s build",
+    "build": "gulp build",
+    "watch": "gulp watchSrc"
   },
   "type": "module",
   "dependencies": {
@@ -31,6 +26,7 @@
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/stream": "^3.0.1",
     "@types/cookie-parser": "^1.4.7",
     "@types/debug": "^4.1.12",
     "@types/express": "^4.17.21",
@@ -39,9 +35,20 @@
     "@types/node": "^20.11.28",
     "@types/nunjucks": "^3.2.6",
     "@types/passport": "^1.0.16",
-    "npm-run-all": "^4.1.5",
+    "del": "^7.1.0",
+    "dotenv": "^16.4.5",
+    "gulp": "^4.0.2",
+    "gulp-cli": "^2.3.0",
+    "gulp-nodemon": "^2.5.0",
+    "gulp-rename": "^2.0.0",
+    "gulp-sass": "^5.1.0",
+    "gulp-typescript": "^6.0.0-alpha.1",
     "rollup": "^4.13.0",
     "sass": "^1.72.0",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.2",
+    "vinyl-source-stream": "^2.0.0"
+  },
+  "overrides": {
+    "depd": "2.0.0"
   }
 }

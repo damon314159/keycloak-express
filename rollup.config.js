@@ -4,7 +4,7 @@ import json from "@rollup/plugin-json";
 import commonjs from "@rollup/plugin-commonjs";
 
 export default {
-  input: "lib/server.js",
+  input: "temp/server.js",
   output: {
     file: "dist/server.js",
     format: "es",
@@ -15,7 +15,7 @@ export default {
       requireReturnsDefault: "esmExternals",
     }),
     json(),
-    resolve(),
+    resolve({ preferBuiltins: true }),
     terser(),
   ],
 };

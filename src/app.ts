@@ -24,15 +24,13 @@ nunjucks.configure(app.get("views"), {
 });
 
 // Keycloak
-const keycloakIssuer = await Issuer.discover(
-  "http://localhost:8080/realms/keycloak-express"
-);
+const keycloakIssuer = await Issuer.discover(process.env.KC_URI ?? ".env-null");
 
 const client = new keycloakIssuer.Client({
-  client_id: "keycloak-express",
+  client_id: process.env.KC_REALM ?? ".env-null",
   client_secret: process.env.KC_SECRET,
-  redirect_uris: ["http://localhost:3000/auth/callback"],
-  post_logout_redirect_uris: ["http://localhost:3000/logout/callback"],
+  redirect_uris: [process.env.REDIRECT_URI ?? ".env-null"],
+  post_logout_redirect_uris: [process.env.LOGOUT_REDIRECT_URI ?? ".env-null"],
   response_types: ["code"],
 });
 
@@ -48,7 +46,7 @@ app.use(express.static(resolve(__dirname, "./public")));
 const MemoryStore = createMemoryStore(expressSession);
 app.use(
   expressSession({
-    secret: process.env.SESSION_SECRET || "",
+    secret: process.env.SESSION_SECRET ?? ".env-null",
     resave: false,
     saveUninitialized: true,
     // Expire every 24hrs
@@ -71,12 +69,16 @@ passport.use(
     (
       tokenSet: TokenSet,
       userinfo: UserinfoResponse<{
-        resource_access?: { "keycloak-express": { roles: string[] } };
+        resource_access?: {
+          [s: string]: { roles: string[] };
+        };
       }>,
       done: (err: any, user?: Express.User) => void
     ) => {
       return done(null, {
-        roles: userinfo.resource_access?.["keycloak-express"]?.roles,
+        roles:
+          userinfo.resource_access?.[process.env.KC_REALM ?? ".env-null"]
+            ?.roles,
         ...tokenSet.claims(),
       });
     }
